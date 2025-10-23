@@ -103,12 +103,6 @@ export default function Home() {
     <input placeholder=""
     
     />
-    <Image
-      src="https://example.com/image.jpg"
-      alt="Example Image"
-      width={200}
-      height={200}
-    />
     </div>
   );
 }
