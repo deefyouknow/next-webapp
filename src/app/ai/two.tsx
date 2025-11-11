@@ -1,95 +1,85 @@
 "use client";
 import { useState } from "react";
 
-export default function UploadCropPNG() {
+export default function UploadFromiPhone() {
   const [preview, setPreview] = useState<string | null>(null);
-  const [result, setResult] = useState<{ OK?: boolean; caption?: string; filename?: string } | null>(null);
+  const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 🧩 ครอป + ย่อ + แปลง PNG (auto compress & HEIC fix)
-  const cropAndCompressToPNG = async (file: File): Promise<File> => {
-    let inputFile = file;
+  // 🧩 แปลง HEIC + ย่อภาพอัตโนมัติ
+  const convertAndCompress = async (file: File): Promise<File> => {
+    let input = file;
 
-    // ✅ แปลง HEIC → JPEG (โหลด heic2any เฉพาะตอนรันใน browser)
+    // ✅ แปลง HEIC → JPEG
     if (file.type.includes("heic") || file.name.toLowerCase().endsWith(".heic")) {
       const heic2any = (await import("heic2any")).default;
       const blob = await heic2any({ blob: file, toType: "image/jpeg" });
-      inputFile = new File([blob as BlobPart], file.name.replace(/\.heic$/i, ".jpg"), {
+      input = new File([blob as BlobPart], file.name.replace(/\.heic$/i, ".jpg"), {
         type: "image/jpeg",
       });
     }
 
-    const img = new Image();
-    const reader = new FileReader();
-
+    // ✅ ครอปและย่อขนาด
     return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
       reader.onload = (e) => {
-        if (!e.target?.result) return reject("ไม่มีข้อมูลไฟล์");
+        if (!e.target?.result) return reject("โหลดภาพไม่สำเร็จ");
         img.src = e.target.result as string;
       };
-
-      img.onerror = () => reject("❌ โหลดภาพไม่สำเร็จ (format ไม่รองรับ)");
-
       img.onload = async () => {
-        let { width, height } = img;
-
-        // 🔲 ครอปตรงกลางให้เป็นสี่เหลี่ยมจัตุรัส
-        const size = Math.min(width, height);
-        const offsetX = (width - size) / 2;
-        const offsetY = (height - size) / 2;
-
+        const size = Math.min(img.width, img.height);
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d")!;
         let scale = 1;
         let blob: Blob | null = null;
 
-        // 🔁 วนย่อจนไม่เกิน 2MB
         while (true) {
           canvas.width = size * scale;
           canvas.height = size * scale;
-          ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, canvas.width, canvas.height);
-
-          blob = await new Promise<Blob | null>((res) =>
-            canvas.toBlob((b) => res(b), "image/png", 0.9)
+          ctx.drawImage(
+            img,
+            (img.width - size) / 2,
+            (img.height - size) / 2,
+            size,
+            size,
+            0,
+            0,
+            canvas.width,
+            canvas.height
           );
-
-          if (!blob) return reject("ไม่สามารถสร้าง blob ได้");
-          if (blob.size <= 2 * 1024 * 1024) break;
-
-          scale *= 0.8; // ลดขนาดลง 20% แล้ววนใหม่
-          console.log("🔄 ย่ออีกครั้ง:", (blob.size / 1024 / 1024).toFixed(2), "MB");
+          blob = await new Promise<Blob | null>((res) =>
+            canvas.toBlob((b) => res(b), "image/jpeg", 0.85)
+          );
+          if (!blob) return reject("สร้าง blob ไม่ได้");
+          if (blob.size <= 2 * 1024 * 1024) break; // ✅ ไม่เกิน 2 MB แล้ว
+          scale *= 0.8;
         }
 
-        const newFile = new File([blob!], file.name.replace(/\.[^/.]+$/, ".png"), {
-          type: "image/png",
-        });
-        resolve(newFile);
+        resolve(new File([blob!], input.name.replace(/\.[^/.]+$/, ".jpg"), { type: "image/jpeg" }));
       };
-
-      reader.readAsDataURL(inputFile);
+      reader.readAsDataURL(input);
     });
   };
 
-  // 📤 อัปโหลดไปยัง API
+  // 📤 อัปโหลดไป FastAPI
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setLoading(true);
+    setPreview(URL.createObjectURL(file));
     setResult(null);
     setError(null);
+    setLoading(true);
 
     try {
-      const uploadFile = await cropAndCompressToPNG(file);
-      setPreview(URL.createObjectURL(uploadFile));
-
+      const processed = await convertAndCompress(file);
       const formData = new FormData();
-      formData.append("file", uploadFile);
+      formData.append("file", processed);
 
-      const res = await fetch("https://api.aiforthai.in.th/capgen", {
+      const res = await fetch("http://10.1.3.0:8000/proxy_capgen", {
         method: "POST",
-        headers: { apikey: "HZjwa5ueL1LSWyN5fsj6t0DQSyqI2cGL" },
         body: formData,
       });
 
@@ -98,7 +88,7 @@ export default function UploadCropPNG() {
       setResult(data);
     } catch (err: any) {
       console.error(err);
-      setError("⚠️ ไม่สามารถอัปโหลดได้: " + (err.message || err));
+      setError("❌ อัปโหลดไม่สำเร็จ: " + (err.message || err));
     } finally {
       setLoading(false);
     }
@@ -107,26 +97,18 @@ export default function UploadCropPNG() {
   // 🖥️ UI
   return (
     <div className="p-6 max-w-lg mx-auto space-y-4">
-      <h1 className="text-lg font-bold text-center">📸 AI Caption (Crop + PNG + HEIC Fix)</h1>
-
+      <h1 className="text-lg font-bold text-center">อัปโหลดภาพ</h1>
       <input
         type="file"
-        accept="image/*"
+        accept="image/*, .heic"
         onChange={handleUpload}
         className="block border rounded p-2 w-full"
       />
-
       {preview && (
-        <img
-          src={preview}
-          alt="preview"
-          className="mt-4 max-w-full border rounded shadow mx-auto"
-        />
+        <img src={preview} alt="preview" className="mt-4 max-w-full border rounded shadow mx-auto" />
       )}
-
       {loading && <p className="text-blue-500 text-center">⏳ กำลังประมวลผล...</p>}
       {error && <p className="text-red-500 text-center">{error}</p>}
-
       {result && (
         <div className="mt-4 border p-3 rounded bg-gray-100 text-sm">
           <p><b>OK:</b> {String(result.OK)}</p>

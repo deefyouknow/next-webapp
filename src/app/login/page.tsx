@@ -26,7 +26,7 @@ export default function Login() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen w-screen bg-gray-300">
+    <div className="fixed flex flex-col items-center justify-center h-screen w-screen bg-gray-300">
       <a href="./">HOME</a>
       <h1 className="text-2xl font-bold mb-4">Login</h1>
 
