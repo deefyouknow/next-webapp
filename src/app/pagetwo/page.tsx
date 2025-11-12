@@ -49,7 +49,7 @@ export default function Home() {
  
 
   return (
-    <div className="fixed p-10 flex-row bg-red-200 h-screen w-screen">
+    <div className="absolute p-10 flex-row bg-red-200 h-screen w-screen">
       <p>ตอนนี้ค่า open = {eiei === "1" ? "1 (เปิด)" : "2 (ปิด) "}</p>
       <button onClick={() => upen("1")}>open</button>
       <br />

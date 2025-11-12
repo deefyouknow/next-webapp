@@ -11,7 +11,7 @@ export default function ThemesDefault({ children }: { children: React.ReactNode 
   
   return (
     <>
-      <div className="h-screen w-screen flex flex-col overflow-hidden">
+      <div className="relative h-screen w-screen flex flex-col overflow-hidden">
         {/*NavBar*/}
         <Navbar isOpen={isOpen} setIsOpenAction={setIsOpen} /> 
         <div className="flex flex-row h-full w-full">

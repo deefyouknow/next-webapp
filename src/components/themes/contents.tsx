@@ -8,7 +8,7 @@ export default function Content(
 ) { 
   return (
     <>
-      <div className={`flex h-full w-full`}>
+      <div className={`flex h-full w-full ${isOpen ? 'hidden md:flex' : ''}`}>
         {children}
       </div>
     </>
