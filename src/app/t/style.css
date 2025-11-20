@@ -1,0 +1,13 @@
+.box {
+  height: 250px;
+  width: 250px;
+  text-align: center;
+  border: 2px solid white;
+  padding: 100px 0;
+  color: white;
+  background-color: black;
+  font-size: 1.875rem; /* text-3xl */
+  box-sizing: border-box;
+  position: absolute;
+  transition: all 1s;
+}

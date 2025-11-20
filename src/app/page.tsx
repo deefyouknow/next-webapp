@@ -1,21 +1,31 @@
-import LuxDashboardClient from '../components/LuxDashboardClient'; // ตรวจสอบว่า path ไปยัง component ถูกต้อง
-import { getLuxData } from '../components/data'; // ตรวจสอบว่า path ไปยัง data function ถูกต้อง
+"use client"
+import { useState, useEffect } from 'react';
+import React from 'react';
+import NavBar from '../components/appbar/navbar';
+import Link from 'next/link';
+import { useAuth } from '../components/useauth';
+import Page from './t/page'
+import HomePage from './dashboard/page';
+import Homee from './d/page';
 
-export default async function Home() {
-  // 1. ดึงข้อมูลบน Server
-  const { data, error } = await getLuxData();
-
-  // 2. จัดการข้อผิดพลาดที่อาจเกิดขึ้นระหว่างการดึงข้อมูล
-  if (error) {
-    return (
-      <main className="flex w-screen h-screen items-center justify-center p-4">
-        <div className="p-8 text-center text-red-600 font-bold border border-red-300 bg-red-50 rounded-xl m-8">
-          {error}
+export default function App() {
+  const { isLoggedIn, user } = useAuth();
+  
+  return (
+    <>
+      <div className={`bg-black flex flex-col overflow-hidden relative m-0 p-0 w-[100dvw] h-[100dvh]`}>
+        <NavBar />
+        <div className='flex bg-white h-full w-full'>
+          {isLoggedIn && 
+          <div className='bg-amber-300 w-full h-full'>
+            <HomePage />
+          </div>
+          }
+          {!isLoggedIn && 
+          <Page />
+          }
         </div>
-      </main>
-    );
-  }
-
-  // 3. หากสำเร็จ, render Client Component และส่ง data ที่ได้ไปเป็น prop
-  return <LuxDashboardClient initialData={data} />;
+      </div>
+    </>
+  )
 }

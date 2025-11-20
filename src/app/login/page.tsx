@@ -1,70 +1,114 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const handleLogin = async () => {
-    console.log("ส่งข้อมูล:", username, password);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-    alert(`name: ${username}, pass: ${password}`);
-  };
-  // user_login_with_api
-  const checkuserpass = async () => {
-    const res2 = await fetch("http://dserver.thddns.net:6863/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        fname: username,
-        lname: password,
-      }),
-    });
-    const data2 = await res2.json();
-    console.log(data2);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null); // Clear previous errors
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("token", data.access_token); // เก็บ token
+        router.push("/"); // redirect ไปหน้า home
+      } else {
+        // ❌ ล็อกอินไม่สำเร็จ → แสดง error แบบ inline
+        setError(data.detail || "Login failed. Please check your credentials.");
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="flex w-full h-full absolute items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-gray-700 text-white">
-      <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-sm">
-        <h1 className="text-3xl font-bold mb-8 text-center">Login</h1>
-
-        <input
-          type="text"
-          className="w-full p-3 mb-4 bg-transparent border-b-2 border-gray-400 focus:border-indigo-400 placeholder-gray-300 focus:outline-none transition duration-300"
-          placeholder="Username" //คำในช่อง input
-          value={username} //เก็บค่าใน variable username
-          onChange={(e) => setUsername(e.target.value)}
-          // เมื่อมีการเปลี่ยนแปลงใน input จะเรียก setUsername เพื่ออัปเดตค่า username ด้วยค่าที่ผู้ใช้กรอก
-        />
-        <input
-          type="password"
-          className="w-full p-3 mb-8 bg-transparent border-b-2 border-gray-400 focus:border-indigo-400 placeholder-gray-300 focus:outline-none transition duration-300"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <div className="flex space-x-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
+      <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
+        <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">
+          Login
+        </h1>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">
+              Username
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              placeholder="Enter your username"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              placeholder="Enter your password"
+              required
+            />
+          </div>
           <button
-            className="flex-1 bg-indigo-600 py-3 rounded-lg hover:bg-indigo-700 transition-colors duration-300"
-            onClick={() => {
-              handleLogin();
-              checkuserpass();
-            }}
+            type="submit"
+            disabled={isLoading}
+            className="w-full flex items-center justify-center bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition duration-300 disabled:bg-indigo-400 disabled:cursor-not-allowed"
           >
-            Login
+            {isLoading ? (
+              <svg
+                className="animate-spin h-5 w-5 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            ) : (
+              "Login"
+            )}
           </button>
-          <button
-            className="flex-1 bg-gray-600 py-3 rounded-lg hover:bg-gray-700 transition-colors duration-300"
-            onClick={() => {
-              handleLogin();
-              checkuserpass();
-            }}
-          >
+          {error && (
+            <p className="text-center text-red-500 text-sm">{error}</p>
+          )}
+        </form>
+        <p className="text-center text-gray-600 mt-4">
+          Don’t have an account?{" "}
+          <a href="/register" className="text-indigo-600 font-semibold">
             Register
-          </button>
-        </div>
+          </a>
+        </p>
       </div>
     </div>
   );
