@@ -7,6 +7,7 @@ import { useAuth } from '../components/useauth';
 import Page from './t/page'
 import HomePage from './dashboard/page';
 import Homee from './d/page';
+import PageA from './a/page';
 
 export default function App() {
   const { isLoggedIn, user } = useAuth();
@@ -23,6 +24,7 @@ export default function App() {
           }
           {!isLoggedIn && 
           <Page />
+          
           }
         </div>
       </div>
