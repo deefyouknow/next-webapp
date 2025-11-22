@@ -2,6 +2,9 @@ import LuxDashboardClient from './components/LuxDashboardClient'; // ตรว�
 import { getLuxData } from '../../components/data'; // ตรวจสอบว่า path ไปยัง data function ถูกต้อง
 import NavBar from '../../components/appbar/navbar';
 
+// Force dynamic rendering to prevent static generation errors
+export const dynamic = 'force-dynamic';
+
 export default async function Homee() {
   // 1. ดึงข้อมูลบน Server
   const { data, error } = await getLuxData(0, 100);
