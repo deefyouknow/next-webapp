@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ProcessedLuxData } from './data'; // นำเข้า type จากไฟล์ data ของคุณ
-
+import { ProcessedLuxData } from '../../../components/data'; // นำเข้า type จากไฟล์ data ของคุณ
 interface LuxDashboardClientProps {
   initialData: ProcessedLuxData[];
 }
