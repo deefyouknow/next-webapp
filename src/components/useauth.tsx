@@ -14,7 +14,8 @@ export function useAuth() {
         .then(res => {
           if (res.status === 401) {
             localStorage.removeItem("token");
-            window.location.href = "/login";
+            setIsLoggedIn(false);
+            // window.location.href = "/login"; // Don't redirect, just logout
             throw new Error("Session expired");
           }
           if (!res.ok) throw new Error("Invalid token");

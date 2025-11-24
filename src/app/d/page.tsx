@@ -1,26 +1,17 @@
-import LuxDashboardClient from './components/LuxDashboardClient'; // ตรวจสอบว่า path ไปยัง component ถูกต้อง
-import { getLuxData } from '../../components/data'; // ตรวจสอบว่า path ไปยัง data function ถูกต้อง
+"use client";
+import dynamic from 'next/dynamic';
 import NavBar from '../../components/appbar/navbar';
 
-// Force dynamic rendering to prevent static generation errors
-export const dynamic = 'force-dynamic';
+const SolarPositionDashboard = dynamic(() => import('./components/SolarPositionDashboard'), { ssr: false });
 
-export default async function Homee() {
-  // 1. ดึงข้อมูลบน Server
-  const { data, error } = await getLuxData(0, 100);
-
+export default function Homee() {
   return (
-    <div>
+    <div className="min-h-screen bg-gray-100">
       <NavBar />
-      {error ? (
-        <main className="flex w-full h-[calc(100vh-64px)] items-center justify-center p-4">
-          <div className="p-8 text-center text-red-600 font-bold border border-red-300 bg-red-50 rounded-xl m-8">
-            {error}
-          </div>
-        </main>
-      ) : (
-        <LuxDashboardClient initialData={data} />
-      )}
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-4 text-gray-800">Solar Position Analysis</h1>
+        <SolarPositionDashboard />
+      </div>
     </div>
   );
 }

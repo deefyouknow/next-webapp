@@ -11,10 +11,10 @@ import {
   Tooltip,
   Legend,
   ChartOptions,
+  Filler,
 } from "chart.js";
 import annotationPlugin from "chartjs-plugin-annotation";
 import zoomPlugin from "chartjs-plugin-zoom";
-
 
 ChartJS.register(
   LineElement,
@@ -24,26 +24,54 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
+  Filler,
   zoomPlugin,
   annotationPlugin
 );
 
 export default function LuxChart() {
-  const [granularity, setGranularity] = useState("Hour");
   const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = () => {
+    // User requested limit 100
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/lux/chart/minute?limit=100`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`API Error: ${res.status}`);
+        return res.json();
+      })
+      .then((json) => {
+        if (Array.isArray(json)) {
+          setData(json);
+          setError(null);
+        } else {
+          setData([]);
+          setError("Invalid data format received.");
+        }
+      })
+      .catch((err) => {
+        console.error("Fetch error:", err);
+        setError("Failed to load data.");
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/stats/minmax`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ Type: granularity }),
-    })
-      .then((res) => res.json())
-      .then((json) => setData(json));
-  }, [granularity]);
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const limitedData = data.slice(-100);
-  const labels = limitedData.map((d) => d.Day || d.Hour || d.Minute);
+  const safeData = Array.isArray(data) ? data : [];
+  // Reverse data for chart if needed, but API usually returns desc. 
+  // If API returns desc (newest first), we might want to reverse for chart (oldest left to newest right).
+  // The API `lux/chart/minute` returns `reversed(results)` so it is chronological (oldest -> newest).
+
+  const labels = safeData.map((d) => d.time ? d.time.split(' ')[1] : '');
+
+  // Get latest values for display
+  const latest = safeData.length > 0 ? safeData[safeData.length - 1] : null;
 
   // ✅ สร้าง background zone ตามช่วงเวลาแบบไม่มี label
   function getTimeZoneAnnotations(labels: string[]) {
@@ -51,6 +79,8 @@ export default function LuxChart() {
     for (let i = 0; i < labels.length - 1; i++) {
       const label = labels[i];
       const nextLabel = labels[i + 1];
+      if (!label || !nextLabel) continue;
+
       const hourMatch = label.match(/(\d{2}):(\d{2})/);
       if (!hourMatch) continue;
       const hour = parseInt(hourMatch[1]);
@@ -71,7 +101,7 @@ export default function LuxChart() {
         xMin: label,
         xMax: nextLabel,
         backgroundColor: zoneColor,
-        drawTime: "beforeDatasetsDraw", // ✅ อยู่หลังเส้น
+        drawTime: "beforeDatasetsDraw",
       };
     }
     return zones;
@@ -81,23 +111,18 @@ export default function LuxChart() {
     labels,
     datasets: [
       {
-        label: "Lux1 Max",
-        data: limitedData.map((d) => d.MaxLux1),
+        label: "Sensor 1",
+        data: safeData.map((d) => d.lux_1),
         borderColor: "rgba(255, 99, 132, 1)",
         backgroundColor: "rgba(255, 99, 132, 0.2)",
         borderWidth: 2,
         pointRadius: 0,
         tension: 0.4,
         fill: true,
-        hidden: granularity === "Day",
-        // Add this to make the legend highlight work
-        // See: https://www.chartjs.org/docs/latest/configuration/interactions.html#interaction-configuration
-        // and: https://www.chartjs.org/docs/latest/configuration/legend.html#legend-item-style
-        // And: https://www.chartjs.org/docs/latest/developers/plugins.html
       },
       {
-        label: "Lux2 Max",
-        data: limitedData.map((d) => d.MaxLux2),
+        label: "Sensor 2",
+        data: safeData.map((d) => d.lux_2),
         borderColor: "rgba(54, 162, 235, 1)",
         backgroundColor: "rgba(54, 162, 235, 0.2)",
         borderWidth: 2,
@@ -106,8 +131,8 @@ export default function LuxChart() {
         fill: true,
       },
       {
-        label: "Lux3 Max",
-        data: limitedData.map((d) => d.MaxLux3),
+        label: "Sensor 3",
+        data: safeData.map((d) => d.lux_3),
         borderColor: "rgba(75, 192, 192, 1)",
         backgroundColor: "rgba(75, 192, 192, 0.2)",
         borderWidth: 2,
@@ -116,8 +141,8 @@ export default function LuxChart() {
         fill: true,
       },
       {
-        label: "Lux4 Max",
-        data: limitedData.map((d) => d.MaxLux4),
+        label: "Sensor 4",
+        data: safeData.map((d) => d.lux_4),
         borderColor: "rgba(255, 159, 64, 1)",
         backgroundColor: "rgba(255, 159, 64, 0.2)",
         borderWidth: 2,
@@ -131,107 +156,69 @@ export default function LuxChart() {
   const options: ChartOptions<"line"> = {
     responsive: true,
     maintainAspectRatio: false,
-    borderColor: "rgba(0, 0, 0, 0.1)",
     plugins: {
       legend: { position: "top" as const },
-      title: { display: true, text: `Lux Angles (${granularity})` },
+      title: { display: true, text: `Lux Sensor Data (Live)` },
       zoom: {
         zoom: {
           wheel: { enabled: true },
           pinch: { enabled: true },
           mode: "x",
-          // Zoom in a bit on initial load
         },
         pan: { enabled: true, mode: "x" },
-        limits: {
-          x: { min: "original", max: "original" },
-        },
       },
       annotation: {
         annotations: getTimeZoneAnnotations(labels),
       },
       tooltip: {
-        titleColor: "#c0c6dc",
-        bodyColor: "#c0c6dc",
-        backgroundColor: "#252b48",
-        borderColor: "#3c4766",
-        borderWidth: 1,
+        mode: 'index',
+        intersect: false,
       },
     },
     scales: {
       x: {
-        title: { display: true, text: granularity },
+        title: { display: true, text: "Time" },
         ticks: {
-          autoSkip: true,
           maxTicksLimit: 20,
-          color: "#c0c6dc", // TradingView-like text color
-        },
-        grid: {
-          color: "rgba(50, 57, 78, 0.5)", // TradingView-like grid color
-          display: true,
         },
       },
       y: {
-        title: { display: true, text: "Lux Value", color: "#c0c6dc" },
+        title: { display: true, text: "Lux Value" },
         beginAtZero: true,
-        ticks: {
-          color: "#c0c6dc", // TradingView-like text color
-        },
-        grid: {
-          color: "rgba(50, 57, 78, 0.5)", // TradingView-like grid color
-        },
-      },
-    },
-    // Add a TradingView-inspired theme.  Consider a separate CSS file for more complex styling.
-    elements: {
-      line: {
-        tension: 0.4, // Adjust the curve of the lines
-      },
-      point: {
-        radius: 0, // Hide points
-      },
-    },
-    // Styling for a dark theme (TradingView-esque)
-
-    layout: {
-      padding: {
-        left: 20,
-        right: 20,
-        top: 0,
-        bottom: 0,
       },
     },
   };
-
-  const chartStyle = {
-    backgroundColor: "#131722",
-    color: "#c0c6dc",
-    padding: "1rem",
-    borderRadius: "0.5rem",
-  };
-
 
   return (
-    <div style={chartStyle}>
-      {/* Dropdown เลือก Granularity */}
-      <select
-        value={granularity}
-        onChange={(e) => setGranularity(e.target.value)}
-        style={{
-          marginBottom: "1rem",
-          padding: "0.5rem",
-          backgroundColor: "#252b48",
-          color: "#c0c6dc",
-          border: "1px solid #3c4766",
-          borderRadius: "0.25rem",
-        }}
-      >
-        <option value="Day">Day</option>
-        <option value="Hour">Hour</option>
-        <option value="Min">Min</option>
-      </select>
+    <div className="p-4 bg-white rounded-xl shadow-md space-y-4">
+      {/* Latest Values Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="p-4 bg-red-50 border border-red-100 rounded-lg">
+          <h3 className="text-sm font-semibold text-red-600">Sensor 1</h3>
+          <p className="text-2xl font-bold text-gray-800">{latest ? Math.round(latest.lux_1) : "-"}</p>
+        </div>
+        <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+          <h3 className="text-sm font-semibold text-blue-600">Sensor 2</h3>
+          <p className="text-2xl font-bold text-gray-800">{latest ? Math.round(latest.lux_2) : "-"}</p>
+        </div>
+        <div className="p-4 bg-teal-50 border border-teal-100 rounded-lg">
+          <h3 className="text-sm font-semibold text-teal-600">Sensor 3</h3>
+          <p className="text-2xl font-bold text-gray-800">{latest ? Math.round(latest.lux_3) : "-"}</p>
+        </div>
+        <div className="p-4 bg-orange-50 border border-orange-100 rounded-lg">
+          <h3 className="text-sm font-semibold text-orange-600">Sensor 4</h3>
+          <p className="text-2xl font-bold text-gray-800">{latest ? Math.round(latest.lux_4) : "-"}</p>
+        </div>
+      </div>
 
-      {/* Chart */}
+      {loading && !data.length && <div className="text-center py-10 text-gray-500">Loading data...</div>}
+
+      {error && (
+        <div className="text-center py-4 text-red-500 bg-red-50 rounded">
+          {error}
+        </div>
+      )}
+
       <div style={{ height: "500px", width: "100%" }}>
         <Line data={chartData} options={options} />
       </div>
